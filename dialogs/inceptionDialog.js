@@ -1,5 +1,4 @@
 const axios = require('axios');
-require('dotenv').config({ path: './.env'})
 const { InputHints, MessageFactory, ActivityTypes } = require('botbuilder');
 const { CancelAndHelpDialog } = require('./cancelAndHelpDialog');
 const { TextPrompt, WaterfallDialog } = require('botbuilder-dialogs');
@@ -9,8 +8,8 @@ const GENERAL_DIALOG = 'generalDialog';
 const TEXT_PROMPT = 'textPrompt';
 
 class InceptionDialog extends CancelAndHelpDialog {
-    constructor(id, containerClient, generalDialog) {
-        super(id, containerClient, generalDialog);
+    constructor(id, generalDialog, tableClient) {
+        super(id, generalDialog, tableClient);
 
         this.addDialog(new TextPrompt(TEXT_PROMPT))
             .addDialog(generalDialog)
@@ -23,13 +22,12 @@ class InceptionDialog extends CancelAndHelpDialog {
             ]));
 
         this.initialDialogId = INCEPTION_DIALOG;
-        this.containerClient = containerClient;
+        this.tableClient = tableClient;
     }
 
     async coverOptionStep(stepContext) {
-        console.log("STARTING AGAIN")
         const clientDetails = stepContext.options;
-        
+        console.log(`CLIENT DETAILS: ${JSON.stringify(clientDetails)}`)
         if (!clientDetails.coverOption) {
             const messageText = 'Please select a Cover Option?\n\nA - Starter\n\nB - Standard\n\nC - Premium';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
@@ -40,7 +38,6 @@ class InceptionDialog extends CancelAndHelpDialog {
 
     async businessNameStep(stepContext) {
         const clientDetails = stepContext.options;
-        
         clientDetails.coverOption = stepContext.result;
         if (!clientDetails.businessName) {
             const messageText = 'Please enter your business name.';
@@ -52,43 +49,37 @@ class InceptionDialog extends CancelAndHelpDialog {
 
     async businessPinLocationStep (stepContext) {
         const clientDetails = stepContext.options;
-
         clientDetails.businessName = stepContext.result;
-        if (!clientDetails.businessLocation.pincoords) {
+        if (!clientDetails.pinCoords) {
             const messageText = 'Please provide your business pin location.';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
         }
-        return await stepContext.next(clientDetails.businessLocation.pincoords);
+        return await stepContext.next(clientDetails.pinCoords);
     }
 
     async inceptionDateStep (stepContext) {
         const clientDetails = stepContext.options;
-        if (!clientDetails.businessLocation.pincoords || !clientDetails.businessLocation.googlePlus || !clientDetails.businessLocation.what3Words) {
+        console.log(`PIN COORDS: ${stepContext.result}`)
+        clientDetails.pinCoords = stepContext.result;
+        if (!clientDetails.pinCoords || !clientDetails.googlePlus || !clientDetails.what3Words) {
             const googleMapsData = await getAPIData("https://maps.googleapis.com/maps/api/geocode/json",`latlng=${stepContext.result}`,"key=AIzaSyAOsCoUnJLbldWCDjmeISoL5YwIaWzGGkU");
             const what3WordsData = await getAPIData("https://api.what3words.com/v3/convert-to-3wa",`coordinates=${stepContext.result}`,"key=MVIU0YCZ");
-            
-            clientDetails.businessLocation = {
-                pincoords: clientDetails.businessLocation.pincoords,
-                googlePlus:googleMapsData.plus_code.global_code,
-                what3Words:what3WordsData.words,
-                address: {
-                    street:googleMapsData.results[0].address_components[1].long_name,
-                    suburb: googleMapsData.results[0].address_components[2].long_name,
-                    area:googleMapsData.results[0].address_components[3].long_name,
-                    province:googleMapsData.results[0].address_components[5].long_name,
-                    postalCode:googleMapsData.results[0].address_components[6].long_name,                
-                }
+            clientDetails.googlePlus = googleMapsData.plus_code.global_code;
+            clientDetails.what3Words = what3WordsData.words;
+            clientDetails.street = googleMapsData.results[0].address_components[1].long_name;
+            clientDetails.suburb = googleMapsData.results[0].address_components[2].long_name;
+            clientDetails.area = googleMapsData.results[0].address_components[3].long_name;
+            clientDetails.province = googleMapsData.results[0].address_components[5].long_name;
+            clientDetails.postalCode = googleMapsData.results[0].address_components[6].long_name;
             };
-        }
-
         if (!clientDetails.inceptionDate) {
             const messageText = 'Please provide your chosen inception date in the format yyyy-mm-dd';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
         }
         return await stepContext.next(clientDetails.inceptionDate);
-    }
+    };
 
 
     async finalStep(stepContext) {
@@ -105,7 +96,8 @@ class InceptionDialog extends CancelAndHelpDialog {
         }
         clientDetails.inceptionDate = stepContext.result;
         clientDetails.incepted = true;
-        await stepContext.context.sendActivity(`INCEPTION STEP: \n\nThe information you have provided is as follows:\n\nCover Option: ${clientDetails.coverOption}\n\nBusiness Name: ${clientDetails.businessName}\n\nPin Location: ${clientDetails.businessLocation.pincoords}\n\nGoogle Plus: ${clientDetails.businessLocation.googlePlus}\n\nWhat3Words: ${clientDetails.businessLocation.what3Words}\n\nStreet: ${clientDetails.businessLocation.address.street}\n\nArea: ${clientDetails.businessLocation.address.area}\n\nSuburb: ${clientDetails.businessLocation.address.suburb}\n\nPostal_Code: ${clientDetails.businessLocation.address.postalCode}\n\nProvince: ${clientDetails.businessLocation.address.province}\n\nInception Date: ${clientDetails.inceptionDate}`);
+        await this.tableClient.updateEntity(clientDetails);
+        await stepContext.context.sendActivity(`INCEPTION STEP: \n\nThe information you have provided is as follows:\n\nCover Option: ${clientDetails.coverOption}\n\nBusiness Name: ${clientDetails.businessName}\n\nPin Location: ${clientDetails.pinCoords}\n\nGoogle Plus: ${clientDetails.googlePlus}\n\nWhat3Words: ${clientDetails.what3Words}\n\nStreet: ${clientDetails.street}\n\nArea: ${clientDetails.area}\n\nSuburb: ${clientDetails.suburb}\n\nPostal_Code: ${clientDetails.postalCode}\n\nProvince: ${clientDetails.province}\n\nInception Date: ${clientDetails.inceptionDate}`);
         return await stepContext.beginDialog(GENERAL_DIALOG, clientDetails);
     }
 }

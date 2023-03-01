@@ -15,7 +15,6 @@ class GeneralDialog extends CancelAndHelpDialog {
                 this.actStep.bind(this),
                 this.finalStep.bind(this)
             ]));
-
         this.initialDialogId = GENERAL_DIALOG;
     }
 

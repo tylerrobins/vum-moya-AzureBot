@@ -20,16 +20,15 @@ const botFrameworkAuthentication = createBotFrameworkAuthenticationFromConfigura
 
 // Azure required imports
 const { DefaultAzureCredential } = require('@azure/identity');
-const { BlobServiceClient } = require('@azure/storage-blob');
+const { TableClient } = require('@azure/data-tables');
 
 // Azure Authentication client
 const credentials = new DefaultAzureCredential();
-// Azure Blob Storage client
-const containerName = "vum-templates";
-const blob_service_url = "https://vumstorage.blob.core.windows.net";
-
-const blobServiceClient = new BlobServiceClient(blob_service_url, credentials);
-const containerClient = blobServiceClient.getContainerClient(containerName);
+const tableClient = new TableClient(
+    "https://vumstorage.table.core.windows.net/",
+    "moyaClients",
+    credentials
+);
 
 // Import the main bot classes.
 const { DialogAndWelcomeBot } = require('./bots/dialogAndWelcomeBot');
@@ -76,9 +75,9 @@ const userState = new UserState(memoryStorage);
 
 // Create the main dialog.
 const generalDialog = new GeneralDialog("generalDialog");
-const inceptionDialog = new InceptionDialog("inceptionDialog",containerClient,generalDialog);
-const dialog = new MainDialog(inceptionDialog, generalDialog);
-const myBot = new DialogAndWelcomeBot(conversationState, userState, dialog);
+const inceptionDialog = new InceptionDialog("inceptionDialog", generalDialog, tableClient);
+const dialog = new MainDialog(inceptionDialog, generalDialog, tableClient);
+const myBot = new DialogAndWelcomeBot(conversationState, userState, dialog, tableClient);
 
 // Listen for incoming requests.
 server.post('/api/messages', async (req, res) => {
