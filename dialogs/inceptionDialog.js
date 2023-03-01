@@ -1,17 +1,19 @@
 const axios = require('axios');
 require('dotenv').config({ path: './.env'})
-const { InputHints, MessageFactory } = require('botbuilder');
+const { InputHints, MessageFactory, ActivityTypes } = require('botbuilder');
 const { CancelAndHelpDialog } = require('./cancelAndHelpDialog');
 const { TextPrompt, WaterfallDialog } = require('botbuilder-dialogs');
 
 const INCEPTION_DIALOG = 'inceptionDialog';
+const GENERAL_DIALOG = 'generalDialog';
 const TEXT_PROMPT = 'textPrompt';
 
 class InceptionDialog extends CancelAndHelpDialog {
-    constructor(id) {
-        super(id || 'inceptionDialog');
+    constructor(id, containerClient, generalDialog) {
+        super(id, containerClient, generalDialog);
 
         this.addDialog(new TextPrompt(TEXT_PROMPT))
+            .addDialog(generalDialog)
             .addDialog(new WaterfallDialog(INCEPTION_DIALOG, [
                 this.coverOptionStep.bind(this),
                 this.businessNameStep.bind(this),
@@ -21,6 +23,7 @@ class InceptionDialog extends CancelAndHelpDialog {
             ]));
 
         this.initialDialogId = INCEPTION_DIALOG;
+        this.containerClient = containerClient;
     }
 
     async coverOptionStep(stepContext) {
@@ -101,7 +104,9 @@ class InceptionDialog extends CancelAndHelpDialog {
             return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
         }
         clientDetails.inceptionDate = stepContext.result;
-        return await stepContext.endDialog(clientDetails);
+        clientDetails.incepted = true;
+        await stepContext.context.sendActivity(`INCEPTION STEP: \n\nThe information you have provided is as follows:\n\nCover Option: ${clientDetails.coverOption}\n\nBusiness Name: ${clientDetails.businessName}\n\nPin Location: ${clientDetails.businessLocation.pincoords}\n\nGoogle Plus: ${clientDetails.businessLocation.googlePlus}\n\nWhat3Words: ${clientDetails.businessLocation.what3Words}\n\nStreet: ${clientDetails.businessLocation.address.street}\n\nArea: ${clientDetails.businessLocation.address.area}\n\nSuburb: ${clientDetails.businessLocation.address.suburb}\n\nPostal_Code: ${clientDetails.businessLocation.address.postalCode}\n\nProvince: ${clientDetails.businessLocation.address.province}\n\nInception Date: ${clientDetails.inceptionDate}`);
+        return await stepContext.beginDialog(GENERAL_DIALOG, clientDetails);
     }
 }
 

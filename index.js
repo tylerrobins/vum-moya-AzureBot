@@ -18,10 +18,24 @@ const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
 });
 const botFrameworkAuthentication = createBotFrameworkAuthenticationFromConfiguration(null, credentialsFactory);
 
+// Azure required imports
+const { DefaultAzureCredential } = require('@azure/identity');
+const { BlobServiceClient } = require('@azure/storage-blob');
+
+// Azure Authentication client
+const credentials = new DefaultAzureCredential();
+// Azure Blob Storage client
+const containerName = "vum-templates";
+const blob_service_url = "https://vumstorage.blob.core.windows.net";
+
+const blobServiceClient = new BlobServiceClient(blob_service_url, credentials);
+const containerClient = blobServiceClient.getContainerClient(containerName);
+
 // Import the main bot classes.
 const { DialogAndWelcomeBot } = require('./bots/dialogAndWelcomeBot');
 const { MainDialog } = require('./dialogs/mainDialog');
 const { InceptionDialog } = require('./dialogs/inceptionDialog');
+const { GeneralDialog } = require('./dialogs/generalDialog');
 
 // Create HTTP server
 const server = restify.createServer();
@@ -61,8 +75,9 @@ const conversationState = new ConversationState(memoryStorage);
 const userState = new UserState(memoryStorage);
 
 // Create the main dialog.
-const inceptionDialog = new InceptionDialog();
-const dialog = new MainDialog(inceptionDialog);
+const generalDialog = new GeneralDialog("generalDialog");
+const inceptionDialog = new InceptionDialog("inceptionDialog",containerClient,generalDialog);
+const dialog = new MainDialog(inceptionDialog, generalDialog);
 const myBot = new DialogAndWelcomeBot(conversationState, userState, dialog);
 
 // Listen for incoming requests.
