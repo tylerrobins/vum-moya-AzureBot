@@ -60,23 +60,28 @@ class InceptionDialog extends CancelAndHelpDialog {
 
     async inceptionDateStep (stepContext) {
         const clientDetails = stepContext.options;
-        console.log(`PIN COORDS: ${stepContext.result}`)
-        clientDetails.pinCoords = stepContext.result;
-        if (!clientDetails.pinCoords || !clientDetails.googlePlus || !clientDetails.what3Words) {
-            const googleMapsData = await getAPIData("https://maps.googleapis.com/maps/api/geocode/json",`latlng=${stepContext.result}`,"key=AIzaSyAOsCoUnJLbldWCDjmeISoL5YwIaWzGGkU");
-            const what3WordsData = await getAPIData("https://api.what3words.com/v3/convert-to-3wa",`coordinates=${stepContext.result}`,"key=MVIU0YCZ");
-            clientDetails.googlePlus = googleMapsData.plus_code.global_code;
-            clientDetails.what3Words = what3WordsData.words;
-            clientDetails.street = googleMapsData.results[0].address_components[1].long_name;
-            clientDetails.suburb = googleMapsData.results[0].address_components[2].long_name;
-            clientDetails.area = googleMapsData.results[0].address_components[3].long_name;
-            clientDetails.province = googleMapsData.results[0].address_components[5].long_name;
-            clientDetails.postalCode = googleMapsData.results[0].address_components[6].long_name;
-            };
-        if (!clientDetails.inceptionDate) {
-            const messageText = 'Please provide your chosen inception date in the format yyyy-mm-dd';
-            const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
-            return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+        const pinValidation = await validateCoordinates(stepContext.result);
+        if (pinValidation) {
+            clientDetails.pinCoords = stepContext.result;
+            if (!clientDetails.pinCoords || !clientDetails.googlePlus || !clientDetails.what3Words) {
+                const googleMapsData = await getAPIData("https://maps.googleapis.com/maps/api/geocode/json",`latlng=${stepContext.result}`,"key=AIzaSyAOsCoUnJLbldWCDjmeISoL5YwIaWzGGkU");
+                const what3WordsData = await getAPIData("https://api.what3words.com/v3/convert-to-3wa",`coordinates=${stepContext.result}`,"key=MVIU0YCZ");
+                clientDetails.googlePlus = googleMapsData.plus_code.global_code;
+                clientDetails.what3Words = what3WordsData.words;
+                clientDetails.street = googleMapsData.results[0].address_components[1].long_name;
+                clientDetails.suburb = googleMapsData.results[0].address_components[2].long_name;
+                clientDetails.area = googleMapsData.results[0].address_components[3].long_name;
+                clientDetails.province = googleMapsData.results[0].address_components[5].long_name;
+                clientDetails.postalCode = googleMapsData.results[0].address_components[6].long_name;
+                };
+            if (!clientDetails.inceptionDate) {
+                const messageText = 'Please provide your chosen inception date in the format yyyy-mm-dd';
+                const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+                return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+            }
+        } else {
+            await stepContext.context.sendActivity(`The pin location you have provided is invalid`);
+            return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
         }
         return await stepContext.next(clientDetails.inceptionDate);
     };
@@ -155,5 +160,12 @@ async function validateDateInput(dateString) {
     }
     return true;
 }
+
+async function validateCoordinates(input) {
+    // Define a regular expression to match the pattern "latitude, longitude"
+    const pattern = /^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
+      // Test the input string against the regular expression
+    return pattern.test(input);
+  }
 
 module.exports.InceptionDialog = InceptionDialog;

@@ -1,3 +1,11 @@
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+const path = require('path');
+
+// Note: Ensure you have a .env file and include LuisAppId, LuisAPIKey and LuisAPIHostName.
+const ENV_FILE = path.join(__dirname, '.env');
+require('dotenv').config({ path: ENV_FILE });
+
 // Import required bot services.
 const restify = require('restify');
 const {
@@ -19,16 +27,22 @@ const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
 const botFrameworkAuthentication = createBotFrameworkAuthenticationFromConfiguration(null, credentialsFactory);
 
 // Azure required imports
-const { DefaultAzureCredential } = require('@azure/identity');
-const { TableClient } = require('@azure/data-tables');
+const { TableClient, AzureSASCredential } = require('@azure/data-tables');
 
 // Azure Authentication client
-const credentials = new DefaultAzureCredential();
+const storageAccount = "vumstorage";
+const tableName = "moyaClients"
+const SAScredential = process.env.SAScredential;
+// const azureCredentials = new DefaultAzureCredential();
 const tableClient = new TableClient(
-    "https://vumstorage.table.core.windows.net/",
-    "moyaClients",
-    credentials
+    `https://${storageAccount}.table.core.windows.net/`,
+    tableName,
+    new AzureSASCredential(SAScredential)
 );
+
+console.log(`https: ${ tableClient.url }`)
+console.log(`Table: ${ tableName }`)
+console.log(`SAS: ${ SAScredential }`)
 
 // Import the main bot classes.
 const { DialogAndWelcomeBot } = require('./bots/dialogAndWelcomeBot');
@@ -62,6 +76,7 @@ adapter.onTurnError = async (context, error) => {
     );
 
     // Send a message to the user
+    await context.sendActivity(`The error "${ error }"`);
     await context.sendActivity('The bot encountered an error or bug.');
     await context.sendActivity('To continue to run this bot, please fix the bot source code.');
 };

@@ -21,6 +21,7 @@
         "@azure/storage-blob": "^12.13.0",
         "botbuilder": "^4.19.1",
         "botbuilder-dialogs": "^4.19.1",
+        "dotenv": "^16.0.3",
         "restify": "~8.5.1"
     },
     "devDependencies": {

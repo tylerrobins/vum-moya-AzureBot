@@ -1,0 +1,8 @@
+{
+    "appService.zipIgnorePattern": [
+        "node_modules{,/**}",
+        ".vscode{,/**}"
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/4237ba15-6100-41a0-82eb-c17bcd347f50/resourceGroups/VUM/providers/Microsoft.Web/sites/vum-chatbot-webapp",
+    "appService.deploySubpath": "."
+}
