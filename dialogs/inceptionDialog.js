@@ -370,28 +370,20 @@ async function getAndFillPDF(policyScheduleBlobClient, clientObject){
     const descriptionSerialNumber = form.getTextField('DescriptionSerial Number');
     const descriptionSumInsured_3 = form.getTextField('DescriptionSum Insured_3');
 
-    console.log(`Client Object: ${JSON.stringify(clientObject)}`)
     policyNumber.setText(clientObject.policyNumber.toString());
     inceptioNDate.setText(clientObject.inceptionDate.toString());
     insured.setText(clientObject.businessName);
     cellNumber.setText('082 123 4567');
     googlePlusCode.setText(clientObject.googlePlus);
     what_3_Words.setText(clientObject.what3Words);
-    console.log("TOP BLOCK DONE")
-    console.log(`Premium nett excl sasria: ${clientObject.premium_nett_excl_sasria}`)
     policyPremiumNett.setText(formatCurrency(clientObject.premium_nett_excl_sasria));
-    console.log(`Premium vat excl sasria: ${clientObject.premium_vat_excl_sasria}`)
     policyPremiumVat.setText(formatCurrency(clientObject.premium_vat_excl_sasria));
-    console.log(`Premium excl sasria: ${clientObject.premium_excl_sasria}`)
     PolicyPremiumTotal.setText(formatCurrency(clientObject.premium_excl_sasria));
     sasriaNett.setText('R 0.65');
     sasriaVat.setText('R 4.35');
     sasriaTotal.setText('R 5.00');
-    console.log(`Premium nett incl sasria: ${clientObject.premium_nett_incl_sasria}`)
     totalNett.setText(formatCurrency(clientObject.premium_nett_incl_sasria));
-    console.log(`Premium vat incl sasria: ${clientObject.premium_vat_incl_sasria}`)
     totalVat.setText(formatCurrency(clientObject.premium_vat_incl_sasria));
-    console.log(`Premium incl sasria: ${clientObject.premium_incl_sasria}`)
     total.setText(formatCurrency(clientObject.premium_incl_sasria));
     date.setText('01/06/2023');
     console.log("FIRST PAGE DONE")
