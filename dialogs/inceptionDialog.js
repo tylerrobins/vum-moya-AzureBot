@@ -155,14 +155,14 @@ class InceptionDialog extends CancelAndHelpDialog {
             const today =  new Date();
             let tomorrow = new Date();
             tomorrow.setDate(today.getDate() + 1);
-            const currentDate = await dateString(today);
-            const tomorrowDate = await dateString(tomorrow);
+            const currentDate = await formatString(today);
+            const tomorrowDate = await formatString(tomorrow);
             if (today.getMonth() == 11) {
                 var firstNextMonth = new Date(today.getFullYear() + 1, 0, 1);
             } else {
                 var firstNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
             }
-            firstNextMonth = await dateString(firstNextMonth);
+            firstNextMonth = await formatString(firstNextMonth);
             const messageText = `Please select the date your would like to Incept you policy. \n\nA - Today (${currentDate})\n\nB - Tomorrow (${tomorrowDate})\n\nC - The 1st of Next Month (${firstNextMonth})`;
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
@@ -257,7 +257,7 @@ async function validateCoordinates(str) {
     return coords;
   }
 
-async function dateString(dateParam){
+async function formatString(dateParam){
     const monthNames = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -318,6 +318,7 @@ async function getAndFillPDF(policyScheduleBlobClient, clientObject){
     // const data = await templateBlobClient.downloadToBuffer();
     // const pdfDoc = await PDFDocument.load(data);
 
+    const today = formatString(new Date());
     console.log("getAndFillPDF")
     const pdfDoc = 
         await PDFDocument.load(
@@ -385,14 +386,14 @@ async function getAndFillPDF(policyScheduleBlobClient, clientObject){
     totalNett.setText(formatCurrency(clientObject.premium_nett_incl_sasria));
     totalVat.setText(formatCurrency(clientObject.premium_vat_incl_sasria));
     total.setText(formatCurrency(clientObject.premium_incl_sasria));
-    date.setText('01/06/2023');
+    date.setText(today);
     console.log("FIRST PAGE DONE")
-    datePrinted1.setText('Printed on: 01/06/2023');
-    datePrinted2.setText('Printed on: 01/06/2023');
-    datePrinted3.setText('Printed on: 01/06/2023');
-    datePrinted4.setText('Printed on: 01/06/2023');
-    datePrinted5.setText('Printed on: 01/06/2023');
-    datePrinted6.setText('Printed on: 01/06/2023');
+    datePrinted1.setText(`Printed on: ${today}`);
+    datePrinted2.setText(`Printed on: ${today}`);
+    datePrinted3.setText(`Printed on: ${today}`);
+    datePrinted4.setText(`Printed on: ${today}`);
+    datePrinted5.setText(`Printed on: ${today}`);
+    datePrinted6.setText(`Printed on: ${today}`);
     descriptionGooglePlusCode.setText(clientObject.googlePlus);
     descriptionWhat3Words.setText(clientObject.what3Words);
     descriptionBusinessAddress.setText(clientObject.street);
