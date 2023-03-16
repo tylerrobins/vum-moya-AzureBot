@@ -1,8 +1,8 @@
 const { DialogBot } = require('./dialogBot');
 
 class DialogAndWelcomeBot extends DialogBot {
-    constructor(conversationState, userState, dialog, tableClient) {
-        super(conversationState, userState, dialog, tableClient); // Call the base class constructor.
+    constructor(conversationState, userState, dialog, clientTableClient) {
+        super(conversationState, userState, dialog, clientTableClient); // Call the base class constructor.
 
         this.onMembersAdded(async (context, next) => {
             const membersAdded = context.activity.membersAdded;
@@ -10,15 +10,17 @@ class DialogAndWelcomeBot extends DialogBot {
                 if (membersAdded[cnt].id !== context.activity.recipient.id) {
                     console.log(`MEMBERS ADDED: ${membersAdded[cnt].id}`)
                     try {
-                        await tableClient.getEntity("", membersAdded[cnt].id);
+                        await clientTableClient.getEntity("", membersAdded[cnt].id);
                         console.log('Client ID is in table');
                     }
                     catch (err) {
                         console.log(`ERROR: ${err}`)
                         const data = {
                             partitionKey:"", 
-                            rowKey:membersAdded[cnt].id, 
-                            id:"", 
+                            rowKey:membersAdded[cnt].id,
+                            policyNumber:"",
+                            id:"",
+                            hasTradingName: "",
                             businessName:"", 
                             coverOption:"",
                             googlePlus:"",
@@ -32,12 +34,11 @@ class DialogAndWelcomeBot extends DialogBot {
                             postalCode:"",
                             province:"",
                         }
-                        await tableClient.createEntity(data)
+                        await clientTableClient.createEntity(data)
                         console.log('Create new client ID in table');
                     }
-                    await context.sendActivity("Hello world!");
-                    console.log(`ENTITY ${JSON.stringify(await tableClient.getEntity("", membersAdded[cnt].id))}`)
-                    await dialog.run(context, conversationState.createProperty('DialogState'), "TESTIIIASDAGFWA TESTING TESTING");
+                    await context.sendActivity("Hello, I'm a Bot.");
+                    await dialog.run(context, conversationState.createProperty('DialogState'));
                 }
             }
             // By calling next() you ensure that the next BotHandler is run.

@@ -1,5 +1,7 @@
 # vum-bot
 
+THIS BOT IS SET UP FOR KINGSLEY ROBINS SUBSCRIPTION.
+
 Run VUM&#39;s Business Lite Inception, and general queries through bot responses and agent hub connection
 
 This bot has been created using [Bot Framework](https://dev.botframework.com), it provides a minimal skeleton of a bot.

@@ -12,10 +12,10 @@ const {
     CloudAdapter,
     ConfigurationServiceClientCredentialFactory,
     createBotFrameworkAuthenticationFromConfiguration,
-    MemoryStorage,
     ConversationState,
     UserState
 } = require('botbuilder');
+const { CosmosDbPartitionedStorage } = require('botbuilder-azure');
 
 // Import required bot configuration and setup credentials.
 const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
@@ -28,21 +28,29 @@ const botFrameworkAuthentication = createBotFrameworkAuthenticationFromConfigura
 
 // Azure required imports
 const { TableClient, AzureSASCredential } = require('@azure/data-tables');
+const { BlobServiceClient } = require('@azure/storage-blob');
 
 // Azure Authentication client
-const storageAccount = "vumstorage";
+const storageAccount = "vumbotstorage";
 const tableName = "moyaClients"
+const policyNumberTableName = "policyNumber"
 const SAScredential = process.env.SAScredential;
+const azureSASCredential = new AzureSASCredential(SAScredential);
 // const azureCredentials = new DefaultAzureCredential();
-const tableClient = new TableClient(
+const clientTableClient = new TableClient(
     `https://${storageAccount}.table.core.windows.net/`,
     tableName,
-    new AzureSASCredential(SAScredential)
+    azureSASCredential
+);
+const policyNumberTableClient = new TableClient(
+    `https://${storageAccount}.table.core.windows.net/`,
+    policyNumberTableName,
+    azureSASCredential
+);
+const policyScheduleBlobClient = new BlobServiceClient(
+    `https://${storageAccount}.blob.core.windows.net?${SAScredential}`
 );
 
-console.log(`https: ${ tableClient.url }`)
-console.log(`Table: ${ tableName }`)
-console.log(`SAS: ${ SAScredential }`)
 
 // Import the main bot classes.
 const { DialogAndWelcomeBot } = require('./bots/dialogAndWelcomeBot');
@@ -81,18 +89,21 @@ adapter.onTurnError = async (context, error) => {
     await context.sendActivity('To continue to run this bot, please fix the bot source code.');
 };
 
-// For local development, in-memory storage is used.
-// CAUTION: The Memory Storage used here is for local bot debugging only. When the bot
-// is restarted, anything stored in memory will be gone.
-const memoryStorage = new MemoryStorage();
+const memoryStorage = new CosmosDbPartitionedStorage({
+    cosmosDbEndpoint: process.env.CosmosDbEndpoint,
+    authKey: process.env.CosmosDbAuthKey,
+    databaseId: process.env.CosmosDbDatabaseId,
+    containerId: process.env.CosmosDbContainerId,
+    compatibilityMode: false
+});
 const conversationState = new ConversationState(memoryStorage);
 const userState = new UserState(memoryStorage);
 
 // Create the main dialog.
 const generalDialog = new GeneralDialog("generalDialog");
-const inceptionDialog = new InceptionDialog("inceptionDialog", generalDialog, tableClient);
-const dialog = new MainDialog(inceptionDialog, generalDialog, tableClient);
-const myBot = new DialogAndWelcomeBot(conversationState, userState, dialog, tableClient);
+const inceptionDialog = new InceptionDialog("inceptionDialog", generalDialog, clientTableClient, policyNumberTableClient, policyScheduleBlobClient);
+const dialog = new MainDialog(inceptionDialog, generalDialog, clientTableClient);
+const myBot = new DialogAndWelcomeBot(conversationState, userState, dialog, clientTableClient);
 
 // Listen for incoming requests.
 server.post('/api/messages', async (req, res) => {
