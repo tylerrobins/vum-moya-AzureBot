@@ -12,12 +12,20 @@ class AwaitingPaymentDialog extends CancelAndHelpDialog{
         this.addDialog(new TextPrompt(TEXT_PROMPT))
             .addDialog(new WaterfallDialog('awaitingPaymentDialog', [
                 this.actStep.bind(this),
+                this.checkingPaymentStatusStep.bind(this),
                 this.finalStep.bind(this)
         ]));
         this.initialDialogId = AWAITING_PAYMENT_DIALOG;
     }
 
     async actStep(stepContext) {
+        const result = stepContext.result
+        const messageText = "Kindly make payment to receive your policy schedule";
+        const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+        return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+    }
+
+    async checkingPaymentStatusStep(stepContext) {
         const result = stepContext.result
         const messageText = `Result is ${result}`;
         const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
