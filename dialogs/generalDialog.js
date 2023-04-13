@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { InputHints, MessageFactory, ActivityTypes } = require('botbuilder');
+const { InputHints, MessageFactory } = require('botbuilder');
 const { CancelAndHelpDialog } = require('./cancelAndHelpDialog');
 const { TextPrompt, WaterfallDialog } = require('botbuilder-dialogs');
 

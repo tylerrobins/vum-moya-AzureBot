@@ -28,7 +28,6 @@ const botFrameworkAuthentication = createBotFrameworkAuthenticationFromConfigura
 
 // Azure required imports
 const { TableClient, AzureSASCredential } = require('@azure/data-tables');
-const { BlobServiceClient } = require('@azure/storage-blob');
 
 // Azure Authentication client
 const storageAccount = "vumbotstorage";
@@ -36,6 +35,7 @@ const tableName = "moyaClients"
 const policyNumberTableName = "policyNumber"
 const SAScredential = process.env.SAScredential;
 const azureSASCredential = new AzureSASCredential(SAScredential);
+
 // const azureCredentials = new DefaultAzureCredential();
 const clientTableClient = new TableClient(
     `https://${storageAccount}.table.core.windows.net/`,
@@ -47,16 +47,13 @@ const policyNumberTableClient = new TableClient(
     policyNumberTableName,
     azureSASCredential
 );
-const policyScheduleBlobClient = new BlobServiceClient(
-    `https://${storageAccount}.blob.core.windows.net?${SAScredential}`
-);
-
 
 // Import the main bot classes.
 const { DialogAndWelcomeBot } = require('./bots/dialogAndWelcomeBot');
 const { MainDialog } = require('./dialogs/mainDialog');
 const { InceptionDialog } = require('./dialogs/inceptionDialog');
 const { GeneralDialog } = require('./dialogs/generalDialog');
+const { AwaitingPaymentDialog } = require('./dialogs/awaitingPaymentDialog');
 
 // Create HTTP server
 const server = restify.createServer();
@@ -101,12 +98,19 @@ const userState = new UserState(memoryStorage);
 
 // Create the main dialog.
 const generalDialog = new GeneralDialog("generalDialog");
-const inceptionDialog = new InceptionDialog("inceptionDialog", generalDialog, clientTableClient, policyNumberTableClient, policyScheduleBlobClient);
-const dialog = new MainDialog(inceptionDialog, generalDialog, clientTableClient);
+const awaitingPaymentDialog = new AwaitingPaymentDialog("awaitingPaymentDialog");
+const inceptionDialog = new InceptionDialog("inceptionDialog", generalDialog, clientTableClient, policyNumberTableClient);
+const dialog = new MainDialog(inceptionDialog, generalDialog, awaitingPaymentDialog, clientTableClient);
 const myBot = new DialogAndWelcomeBot(conversationState, userState, dialog, clientTableClient);
 
 // Listen for incoming requests.
 server.post('/api/messages', async (req, res) => {
     // Route received a request to adapter for processing
     await adapter.process(req, res, (context) => myBot.run(context));
+});
+
+// Listen for Health Check requests
+server.get('/api/health', (req, res, next) => {
+    res.send(200, 'Healthy');
+    next();
 });

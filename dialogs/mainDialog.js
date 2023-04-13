@@ -4,15 +4,13 @@ const MAIN_WATERFALL_DIALOG = 'waterfallDialog';
 const TEXT_PROMPT = 'textPrompt';
 
 class MainDialog extends ComponentDialog {
-    constructor(inceptionDialog, generalDialog, clientTableClient) {
+    constructor(inceptionDialog, generalDialog, awaitingPaymentDialog, clientTableClient) {
         super('mainDialog', clientTableClient);
-
-        if (!inceptionDialog) throw new Error('[MainDialog]: Missing parameter \'inceptionDialog\' is required');
-        if (!generalDialog) throw new Error('[MainDialog]: Missing parameter \'inceptionDialog\' is required');
-
+        
         this.addDialog(new TextPrompt(TEXT_PROMPT))
             .addDialog(inceptionDialog)
             .addDialog(generalDialog)
+            .addDialog(awaitingPaymentDialog)
             .addDialog(new WaterfallDialog(MAIN_WATERFALL_DIALOG, [
                 this.actStep.bind(this),
                 this.finalStep.bind(this)
@@ -39,12 +37,65 @@ class MainDialog extends ComponentDialog {
     
     async actStep(stepContext) {
         console.log("ACT STEP")
-        const clientDetails = await this.clientTableClient.getEntity("", stepContext.context.activity.from.id);
+        let clientDetails;
+        try {
+            clientDetails = await this.clientTableClient.getEntity("", stepContext.context.activity.from.id);
+            console.log('Client ID is in table');
+        }
+        catch (err) {
+            console.log(`ERROR: ${err}`)
+            clientDetails = {
+                partitionKey:"",
+                rowKey:stepContext.context.activity.from.id,
+                didNumber:"",
+                firstName: "",
+                lastName: "",
+                idNumber: "",
+                citizenship: "",
+                deviceMake: "",
+                deviceModel: "",
+                deviceTac: "",
+                displayName: "",
+                moyaPay: "",
+                moyaPayStatus: "",
+                policyNumber:"",
+                id:"",
+                hasTradingName: "",
+                businessName:"", 
+                coverOption:"",
+                businessActivity: "",
+                googlePlus:"",
+                pinCoords:"",
+                what3Words:"",
+                inceptionDate:"",
+                dataPopulated: false,
+                incepted:false,
+                pro_rata:"",
+                pro_rata_amt:"",
+                premium_excl_sasria: "",
+                premium_incl_sasria: "",
+                premium_nett_excl_sasria: "",
+                premium_nett_incl_sasria: "",
+                premium_vat_excl_sasria: "",
+                premium_vat_incl_sasria: "",
+                street:"",
+                area:"",
+                suburb:"",
+                postalCode:"",
+                province:"",
+            }
+            await this.clientTableClient.createEntity(clientDetails)
+            console.log('Create new client ID in table');
+        }
         if (clientDetails.incepted === true) {
             return await stepContext.beginDialog('generalDialog', clientDetails)
-        }
-        else{
-            return await stepContext.beginDialog('inceptionDialog', clientDetails);            
+        } else {
+            if (clientDetails.dataPopulated === true) {
+                return await stepContext.beginDialog('awaitingPaymentDialog', clientDetails)
+            }
+            else {
+                return await stepContext.beginDialog('inceptionDialog', clientDetails);
+            }
         }
     };
 

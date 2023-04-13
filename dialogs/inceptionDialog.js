@@ -1,66 +1,124 @@
 const axios = require('axios');
-const { InputHints, MessageFactory, ActivityTypes, AttachmentLayoutTypes } = require('botbuilder');
+const { InputHints, MessageFactory} = require('botbuilder');
 const { CancelAndHelpDialog } = require('./cancelAndHelpDialog');
 const { TextPrompt, WaterfallDialog } = require('botbuilder-dialogs');
-const {PDFDocument} = require('pdf-lib');
+const { BlobServiceClient, StorageSharedKeyCredential, generateBlobSASQueryParameters, BlobSASPermissions, SASProtocol  } = require("@azure/storage-blob");
+const { PDFDocument } = require('pdf-lib');
 
 const fs = require('fs');
 const path = require('path');
 const tempalte_path = path.join(__dirname, "../templates");
 
 const INCEPTION_DIALOG = 'inceptionDialog';
+const MAIN_DIALOG = 'mainDialog';
 const GENERAL_DIALOG = 'generalDialog';
+const AWAITING_PAYMENT_DIALOG = 'awaitingPaymentDialog';
 const TEXT_PROMPT = 'textPrompt';
 
+const storageAccount = "vumbotstorage";
+const sharedKeyToken = process.env.sharedKeyToken;
+const sharedKeyCredential = new StorageSharedKeyCredential(storageAccount, sharedKeyToken);
+const policyScheduleBlobClient = new BlobServiceClient(
+    `https://${storageAccount}.blob.core.windows.net/`,
+    sharedKeyCredential
+);
+const clientNumber = "27632033786";
+
 class InceptionDialog extends CancelAndHelpDialog {
-    constructor(id, generalDialog, clientTableClient, policyNumberTableClient, policyScheduleBlobClient) {
-        super(id, generalDialog, clientTableClient, policyNumberTableClient, policyScheduleBlobClient);
+    constructor(id, generalDialog, clientTableClient, policyNumberTableClient) {
+        super(id, generalDialog, clientTableClient, policyNumberTableClient);
 
         this.addDialog(new TextPrompt(TEXT_PROMPT))
             .addDialog(generalDialog)
             .addDialog(new WaterfallDialog(INCEPTION_DIALOG, [
+                this.moyaPayCheckStep.bind(this),
                 this.coverOptionStep.bind(this),
                 this.tradingNameStep.bind(this),
                 this.businessNameStep.bind(this),
                 this.businessPinLocationStep.bind(this),
                 this.inceptionDateStep.bind(this),
+                this.confirmStep.bind(this),
+                this.checkDataChange.bind(this),
                 this.finalStep.bind(this)
             ]));
 
         this.initialDialogId = INCEPTION_DIALOG;
         this.clientTableClient = clientTableClient;
         this.policyNumberTableClient = policyNumberTableClient;
-        this.policyScheduleBlobClient = policyScheduleBlobClient;
     }
+
+    async moyaPayCheckStep(stepContext) {
+        const clientDetails = stepContext.options;
+        console.log(`ClientDetials in MoyaPayCheckStep: ${JSON.stringify(clientDetails)}`)
+        console.log(`Result of !clientDetails.moyaPay: ${!clientDetails.moyaPay}`)
+        if(clientDetails.moyaPay === undefined || clientDetails.moyaPay === ""){
+            await stepContext.context.sendActivity('Thank you for you interest in our product, we have the following Cover Options available to you:\n\nStarter - R75.00\n- Stock and Contents: R30 000\n- Personal Accident: R25 000\n- Political Riot: R500 000\n\nStandard - R125.00\n- Stock and Contents: R50 000\n- Personal Accident: R25 000\n- Cell phone cover: R2 500\n- Political Riot: R500 000\n\nPremium - R195.00\n- Stock and Contents: R100 000\n- Personal Accident: R50 000\n- Cell phone cover: R5 000\n- Political Riot: R500 000');
+            console.log("MoyaPay: undefined or empty if statement")
+            let data = await moyaPayCheck(clientNumber)
+            clientDetails.moyaPay = data.resultCode;
+            clientDetails.moyaPayStatus = data.resultMessage;
+        } else {
+            let data = await moyaPayCheck(clientNumber)
+            clientDetails.moyaPay = data.resultCode;
+            clientDetails.moyaPayStatus = data.resultMessage
+        }
+        switch(clientDetails.moyaPay) {
+            case 0:
+                const messageText0 = 'We are sorry, but at the moment this product is exclusive to MoyaPay users. You can easily open a MoyaPay account by tapping here: moya://moya.payd or tap on the (?) button in MoyaPay for help with opening your account.';
+                const msg0 = MessageFactory.text(messageText0, messageText0, InputHints.ExpectingInput);
+                return await stepContext.prompt(TEXT_PROMPT, { prompt: msg0 });
+            case 1:
+                const messageText1 = 'At the moment this product is exclusive to MoyaPay users. Your MoyaPay account is currently being verified, once your account has been opened you will be able to continue the policy inception process.';
+                const msg1 = MessageFactory.text(messageText1, messageText1, InputHints.ExpectingInput);
+                return await stepContext.prompt(TEXT_PROMPT, { prompt: msg1 });
+            case 2:
+                return await stepContext.next(clientDetails.moyaPay);
+            default:
+                console.log("MoyaPay: default if statement")
+                return await stepContext.next(clientDetails.moyaPay);
+        }
+     }
 
     async coverOptionStep(stepContext) {
-        console.log("STARTING AGAIN")
         const clientDetails = stepContext.options;
-        console.log(`CLIENT DETAILS: ${JSON.stringify(clientDetails)}`)
+        console.log(`ClientDetials in CoverOptionStep: ${JSON.stringify(clientDetails)}`)
+        const result = stepContext.result;
+        // Check the results, of MoyaPay check step
+        switch (result) {
+            case 0:              
+                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+            case 1:
+                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+            case 2:
+                break;
+            case 'start chat':
+                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+            default:
+                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+            }
         if (!clientDetails.coverOption) {
-            const messageText = 'Please select a Cover Option?\n\nA - Starter\n\nB - Standard\n\nC - Premium';
+            const messageText = 'Please select a Cover Option?\nA - Starter\nB - Standard\nC - Premium';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
-        }
+            }
         return await stepContext.next(clientDetails.coverOption);
-    }
+        }
 
     async tradingNameStep(stepContext) {
-        console.log("TRADING NAME STEP")
         const clientDetails = stepContext.options;
         const result = stepContext.result;
-
+        // Check the results, of Cover Option step
         switch(result.toLowerCase()) {
-            case 'a':
+            case 'a' || 'starter':
                 clientDetails.coverOption = 'Starter';
                 clientDetails.premium_incl_sasria  = 75;
-                clientDetails.premium_nett_incl_sasria = 65.22;
+                clientDetails.premium_nett_incl_sasria = 65.22;a
                 clientDetails.premium_vat_incl_sasria = 9.78;
                 clientDetails.premium_excl_sasria = 70;
                 clientDetails.premium_nett_excl_sasria = 60.87;
                 clientDetails.premium_vat_excl_sasria = 9.13;
                 break;
-            case 'b':
+            case 'b' || 'standard':
                 clientDetails.coverOption = 'Standard';
                 clientDetails.premium_incl_sasria = 125;
                 clientDetails.premium_nett_incl_sasria = 108.70;
@@ -69,7 +127,7 @@ class InceptionDialog extends CancelAndHelpDialog {
                 clientDetails.premium_nett_excl_sasria = 104.35;
                 clientDetails.premium_vat_excl_sasria = 15.65;
                 break;
-            case 'c':
+            case 'c' || 'premium':
                 clientDetails.coverOption = 'Premium';
                 clientDetails.premium_incl_sasria = 195;
                 clientDetails.premium_nett_incl_sasria = 169.57;
@@ -79,12 +137,11 @@ class InceptionDialog extends CancelAndHelpDialog {
                 clientDetails.premium_vat_excl_sasria = 24.78;
                 break;
             default:
-                await stepContext.context.sendActivity("Please select a valid option.....");
+                await stepContext.context.sendActivity("Please select a valid option");
                 return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
         }
-
         if (!clientDetails.hasTradingName) {
-            const messageText = 'Do you have a trading name?\n\nA - Yes\n\nB - No';
+            const messageText = 'Do you have a business trading name?\nA - Yes\nB - No';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
         }
@@ -95,21 +152,22 @@ class InceptionDialog extends CancelAndHelpDialog {
         console.log("BUSINESS NAME STEP")
         const clientDetails = stepContext.options;
         const result = stepContext.result;
-        if(!clientDetails.hasTradingName) {
-            if (result === "A" || result === "a") {
-                clientDetails.hasTradingName = "true";
-            } else if (result === "B" || result === "b") {
-                clientDetails.hasTradingName = "false";
-                clientDetails.businessName = "CHANGE TO USER NAME";
-            } else if (result===""){
-                // Do Nothing
-            } else {
-                await stepContext.context.sendActivity("Please select a valid option.");
+
+        switch(result.toLowerCase()) {
+            case 'a':
+                clientDetails.hasTradingName = 'true';
+                break;
+            case 'b':
+                clientDetails.hasTradingName = 'false';
+                clientDetails.businessName = `${clientDetails.firstName} ${clientDetails.lastName}`;
+                break;
+            default:
+                await stepContext.context.sendActivity("Please select a valid option");
                 return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
-            }
-        } 
+        }
+        
         if (!clientDetails.businessName) {
-            const messageText = 'Please enter your trading name?';
+            const messageText = 'Please enter your business trading name?';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
         }
@@ -122,7 +180,7 @@ class InceptionDialog extends CancelAndHelpDialog {
         clientDetails.businessName = stepContext.result;
         console.log(`CLIENT DETAILS from second Pin: ${JSON.stringify(clientDetails)}`)
         if (!clientDetails.pinCoords) {
-            const messageText = 'Please provide your business pin location.';
+            const messageText = 'Please provide your business location by sending a pin location in this chat.';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
         }
@@ -155,34 +213,35 @@ class InceptionDialog extends CancelAndHelpDialog {
             const today =  new Date();
             let tomorrow = new Date();
             tomorrow.setDate(today.getDate() + 1);
-            const currentDate = await formatString(today);
-            const tomorrowDate = await formatString(tomorrow);
+            const currentDate = formatString(today);
+            const tomorrowDate = formatString(tomorrow);
             if (today.getMonth() == 11) {
                 var firstNextMonth = new Date(today.getFullYear() + 1, 0, 1);
             } else {
                 var firstNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
             }
-            firstNextMonth = await formatString(firstNextMonth);
-            const messageText = `Please select the date your would like to Incept you policy. \n\nA - Today (${currentDate})\n\nB - Tomorrow (${tomorrowDate})\n\nC - The 1st of Next Month (${firstNextMonth})`;
+            firstNextMonth = formatString(firstNextMonth);
+            const messageText = `Please choose the date you would like your Policy to start:\nA - Today (${currentDate})\nB - Tomorrow (${tomorrowDate})\nC - The 1st of Next Month (${firstNextMonth})`;
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
         }
         return await stepContext.next(clientDetails.inceptionDate);
     };
 
-    async finalStep(stepContext) {
+    async confirmStep(stepContext) {
         const clientDetails = stepContext.options;
+        console.log(`CLIENT DETAILS from confirm step: ${JSON.stringify(clientDetails)}`)
         const result = stepContext.result;
         if (!clientDetails.inceptionDate) {
             const today =  new Date();
             switch(result.toLowerCase()) {
                 case "a":
-                    clientDetails.inceptionDate = today;
+                    clientDetails.inceptionDate = formatString(today);
                     break;
                 case "b":
                     let tomorrow = new Date();
                     tomorrow.setDate(today.getDate() + 1);
-                    clientDetails.inceptionDate = tomorrow;
+                    clientDetails.inceptionDate = formatString(tomorrow);
                     break;
                 case "c":
                     if (today.getMonth() == 11) {
@@ -190,7 +249,7 @@ class InceptionDialog extends CancelAndHelpDialog {
                     } else {
                         var firstNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
                     }
-                    clientDetails.inceptionDate = firstNextMonth;
+                    clientDetails.inceptionDate = formatString(firstNextMonth);
                     break;
                 case "":
                     // Do Nothing
@@ -200,26 +259,107 @@ class InceptionDialog extends CancelAndHelpDialog {
                     return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
                 }
             }
-        clientDetails.policyNumber = await getNextPolicyNumber(this.policyNumberTableClient);
-        clientDetails.incepted = true;
-        const policySchedulePDF = await getAndFillPDF(this.policyScheduleBlobClient, clientDetails);
-        policySchedulePDF.toString('base64');
-        const attachment = {
-            contentType: 'application/pdf',
-            contentUrl: `data:application/pdf;base64,${policySchedulePDF}`,
-            name: `Santam Emerging Business Insurance Policy Schedule - ${clientDetails.policyNumber}.pdf`,
-          };
-        const reply = {
-            type: ActivityTypes.Message,
-            text: 'Here is your PDF file:',
-            attachments: [attachment],
-            attachmentLayout: AttachmentLayoutTypes.list,
-        };
-        await stepContext.context.sendActivity(reply);
-        await this.clientTableClient.updateEntity(clientDetails);
-        await stepContext.context.sendActivity(`INCEPTION STEP: \n\nThe information you have provided is as follows:\n\nPolicy Number: ${clientDetails.policyNumber}\n\nCover Option: ${clientDetails.coverOption}\n\nBusiness Name: ${clientDetails.businessName}\n\nPin Location: ${clientDetails.pinCoords}\n\nGoogle Plus: ${clientDetails.googlePlus}\n\nWhat3Words: ${clientDetails.what3Words}\n\nStreet: ${clientDetails.street}\n\nArea: ${clientDetails.area}\n\nSuburb: ${clientDetails.suburb}\n\nPostal_Code: ${clientDetails.postalCode}\n\nProvince: ${clientDetails.province}\n\nInception Date: ${clientDetails.inceptionDate}`);
-        return await stepContext.beginDialog(GENERAL_DIALOG, clientDetails);
+        const messageText = `Please confirm the following information:\nCover Option: ${clientDetails.coverOption}\nBusiness Name: ${clientDetails.businessName}\nBusiness Location: ${clientDetails.pinCoords}\nInception Date: ${clientDetails.inceptionDate}\nA - Correct Information\nB - Incorrect Information`;
+        const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+        return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
     }
+
+    async checkDataChange(stepContext) {
+        const clientDetails = stepContext.options;
+        const result = stepContext.result;
+        switch (result.toLowerCase()) {
+            case "a":
+                return await stepContext.next(clientDetails);
+            case "b":
+                return await stepContext.context.sendActivity("Please indicate the incorrect information:\nA - Cover Option\nB - Business Name\nC - Business Location\nD - Inception Date");
+            default:
+                await stepContext.context.sendActivity("Please select a valid option.");
+                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+        }
+    }
+
+    async finalStep(stepContext) {
+        const clientDetails = stepContext.options;
+        const result = stepContext.result;
+        if(!isObject(result)){
+            switch (result.toLowerCase()) {
+                case "a":
+                    clientDetails.coverOption = null;
+                    break;
+                case "b":
+                    clientDetails.businessName = null;
+                    break;
+                case "c":
+                    clientDetails.pinCoords = null;
+                    break;
+                case "d":
+                    clientDetails.inceptionDate = null;
+                    break;
+                default:
+                    await stepContext.context.sendActivity("Please select a valid option.");
+                    return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+            }
+            return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+        }
+        clientDetails.dataPopulated = true;
+        // let proRataText = "";
+        console.log(`\n\nCLIENT DATA: ${JSON.stringify(clientDetails)}\n\n`);
+        await postRequest(`https://vum-webapp-node.azurewebsites.net/populatePolicyData/`,clientNumber, clientDetails)
+        .then((response) => {
+            Object.assign(clientDetails, response.data);
+            })
+            .catch((error) => {
+                // console.log(error)
+            });
+        let proRataText = "";
+        if (clientDetails.pro_rata) {
+            proRataText = `the pro rata and the first months premium of R ${clientDetails.premium_due}`;
+        } else {
+            proRataText = `the first months premium of R ${clientDetails.premium_due}`;
+        }
+        await stepContext.context.sendActivity(`Thank you for choosing us for your Business Insurance Needs, your Policy Number is ${clientDetails.policyNumber}.\nYour Policy has been incepted, and cover will only become fully active when your pay ${proRataText}`);
+        return await stepContext.beginDialog(MAIN_DIALOG, clientDetails);
+    }
+}
+
+async function moyaPayCheck(clientNumber){
+    return new Promise(async (resolve, reject) => {
+        let config = {
+          method: 'get',
+          maxBodyLength: Infinity,
+          url: `https://payments.api.dev.moyapayd.app/customers/${clientNumber}/check`,
+          headers: {
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtZXJjaGFudDEiLCJpYXQiOjE2Nzk2NjI1MDIsInNjb3BlIjoicGF5bWVudDpyZWFkIHBheW1lbnQ6Y3JlYXRlIGN1c3RvbWVyOnJlYWQgY3VzdG9tZXI6cGF5In0.oX1LS7Oci24rpSJbBpNg2mJk8D5XhQb1-ZsEeTNSFWM', 
+          },
+        };
+    
+        try {
+          const response = await axios.request(config);
+          console.log(response.data);
+          resolve(response.data);
+        } catch (error) {
+          console.log(error);
+          reject(error);
+        }
+      });
+}
+
+async function postRequest(endpoint, parameters, data){
+    return new Promise(async (resolve, reject) => {
+        try {
+            const url = endpoint + parameters;
+            const response = await axios.post(url, data, {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+      
+            resolve(response.data);
+          } catch (error) {
+            // console.error('Error while making the POST request:', error);
+            reject(error);
+          }
+        });
 }
 
 /**
@@ -239,7 +379,7 @@ async function getAPIData(endpoint,...args) {
     } catch (error) {
         console.log(error);
     }
-  }
+}
 
 async function validateCoordinates(str) {
     let coords;
@@ -255,9 +395,9 @@ async function validateCoordinates(str) {
     }
   
     return coords;
-  }
+}
 
-async function formatString(dateParam){
+function formatString(dateParam){
     const monthNames = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -285,6 +425,7 @@ async function getNextPolicyNumber(policyNumberTableClient) {
           { etag: entity.etag }
         );
         
+        // 
         
         // Return the new policy number
         return newPolicyNumber;
@@ -299,7 +440,7 @@ async function getNextPolicyNumber(policyNumberTableClient) {
         throw error;
       }
     }
-  }
+}
 
 function formatCurrency(num){
     const formatter = new Intl.NumberFormat('en-US', {
@@ -311,14 +452,10 @@ function formatCurrency(num){
     return formattedNum.replace('ZAR', 'R ');
 }
 
-async function getAndFillPDF(policyScheduleBlobClient, clientObject){
-    // console.log("getAndFillPDF")
-    // const templateContainerClient = policyScheduleBlobClient.getContainerClient("templates"); 
-    // const templateBlobClient = templateContainerClient.getBlobClient("Santam Emerging Business Insurance Policy Schedule - Template.pdf");
-    // const data = await templateBlobClient.downloadToBuffer();
-    // const pdfDoc = await PDFDocument.load(data);
-
+async function getAndFillPDF(policyScheduleBlobClient, clientObject, filename){
+    const outputContainerName = "policy-schedules";
     const today = formatString(new Date());
+    console.log(`Today's date: ${today}`)
     console.log("getAndFillPDF")
     const pdfDoc = 
         await PDFDocument.load(
@@ -380,8 +517,8 @@ async function getAndFillPDF(policyScheduleBlobClient, clientObject){
     policyPremiumNett.setText(formatCurrency(clientObject.premium_nett_excl_sasria));
     policyPremiumVat.setText(formatCurrency(clientObject.premium_vat_excl_sasria));
     PolicyPremiumTotal.setText(formatCurrency(clientObject.premium_excl_sasria));
-    sasriaNett.setText('R 0.65');
-    sasriaVat.setText('R 4.35');
+    sasriaNett.setText('R 4.35');
+    sasriaVat.setText('R 0.65');
     sasriaTotal.setText('R 5.00');
     totalNett.setText(formatCurrency(clientObject.premium_nett_incl_sasria));
     totalVat.setText(formatCurrency(clientObject.premium_vat_incl_sasria));
@@ -417,13 +554,67 @@ async function getAndFillPDF(policyScheduleBlobClient, clientObject){
 
     const pdfBytes_output = await pdfDoc.save();
 
-    fs.writeFileSync(path.join(__dirname,`../policy_schedules/Santam Emerging Business Insurance Policy Schedule - ${clientObject.policyNumber}.pdf`), pdfBytes_output);
+    const containerClient = policyScheduleBlobClient.getContainerClient(outputContainerName);
+    const blockBlobClient = containerClient.getBlockBlobClient(filename);
+    await blockBlobClient.upload(pdfBytes_output, pdfBytes_output.length);
+    
+    const sasToken = generateBlobSasUrl(filename, outputContainerName);
 
-    // const policyScheduleName = `Santam Emerging Business Insurance Policy Schedule.pdf`;
-    // const policyContainerClient = policyScheduleBlobClient.getContainerClient("policy-schedules");
-    // const policyBlobClient = policyContainerClient.getBlockBlobClient(policyScheduleName);
-    // await policyBlobClient.upload(pdfBytes_output, pdfBytes_output.length)
-    return pdfBytes_output;
+    return sasToken;
+}
+
+function generateBlobSasUrl(blobName, containerName, expiresInDays = 180) {
+    const now = new Date();
+    const expiresOn = new Date(now.getTime() + expiresInDays * 24 * 60 * 60 * 1000);
+  
+    const sasPermissions = new BlobSASPermissions();
+    sasPermissions.read = true;
+  
+    const sasQueryParameters = generateBlobSASQueryParameters(
+      {
+        containerName,
+        blobName,
+        permissions: sasPermissions,
+        startsOn: now,
+        expiresOn,
+        protocol: SASProtocol.Https,
+      },
+      sharedKeyCredential
+    );
+  
+    const sasToken = sasQueryParameters.toString();
+    const sasUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${blobName}?${sasToken}`;
+  
+    return sasUrl;
+}
+
+function getProRataAmount(inceptionDateChosen, totalPremiumInclSasria){
+    const date = new Date(inceptionDateChosen);
+    let pro_rata = true;
+    let premium_due = 0;
+    if(date.getDate() < 10){
+        pro_rata = false;
+        premium_due = totalPremiumInclSasria;
+        return {pro_rata, premium_due};
+    } else {
+        // calculate the days remaining in the current month
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const nextMonthFirstDay = new Date(year, month, 1);
+
+        const millisecondsPerDay = 24 * 60 * 60 * 1000;
+        const differenceInMilliseconds = nextMonthFirstDay - date;
+        const daysRemaining = Math.floor(differenceInMilliseconds / millisecondsPerDay);
+
+        // calculate the pro rata amount
+        premium_due = totalPremiumInclSasria + (((totalPremiumInclSasria * 12)/365) * daysRemaining); 
+        premium_due = parseFloat(premium_due.toFixed(2));
+        return {pro_rata, premium_due};
+    }
+}
+
+function isObject(value) {
+    return typeof value === 'object' && value !== null && !(value instanceof Array);
 }
 
 
