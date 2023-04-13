@@ -15,6 +15,8 @@ const GENERAL_DIALOG = 'generalDialog';
 const AWAITING_PAYMENT_DIALOG = 'awaitingPaymentDialog';
 const TEXT_PROMPT = 'textPrompt';
 
+const moyaPayToken = process.env.MOYA_PAY_TOKEN;
+
 const storageAccount = "vumbotstorage";
 const sharedKeyToken = process.env.sharedKeyToken;
 const sharedKeyCredential = new StorageSharedKeyCredential(storageAccount, sharedKeyToken);
@@ -329,7 +331,7 @@ async function moyaPayCheck(clientNumber){
           maxBodyLength: Infinity,
           url: `https://payments.api.dev.moyapayd.app/customers/${clientNumber}/check`,
           headers: {
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtZXJjaGFudDEiLCJpYXQiOjE2Nzk2NjI1MDIsInNjb3BlIjoicGF5bWVudDpyZWFkIHBheW1lbnQ6Y3JlYXRlIGN1c3RvbWVyOnJlYWQgY3VzdG9tZXI6cGF5In0.oX1LS7Oci24rpSJbBpNg2mJk8D5XhQb1-ZsEeTNSFWM', 
+            'Authorization': `Bearer ${moyaPayToken}`, 
           },
         };
     
