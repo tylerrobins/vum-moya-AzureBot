@@ -13,6 +13,7 @@ class GeneralDialog extends CancelAndHelpDialog {
         this.addDialog(new TextPrompt(TEXT_PROMPT))
             .addDialog(new WaterfallDialog(GENERAL_DIALOG, [
                 this.actStep.bind(this),
+                this.responseStep.bind(this),
                 this.finalStep.bind(this)
             ]));
         this.initialDialogId = GENERAL_DIALOG;
@@ -22,6 +23,12 @@ class GeneralDialog extends CancelAndHelpDialog {
        const messageText = "How can I help you today?";
        const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
        return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+    }
+
+    async responseStep(stepContext) {
+        const messageText = "Thank you for your query, we have logged it and will get back to you shortly.";
+        const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+        return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
     }
 
     async finalStep(stepContext) {

@@ -31,8 +31,8 @@ const { TableClient, AzureSASCredential } = require('@azure/data-tables');
 
 // Azure Authentication client
 const storageAccount = "vumbotstorage";
-const tableName = "moyaClients"
-const policyNumberTableName = "policyNumber"
+const tableName = "moyaClients";
+const errorLogTableName = "errorLogs";
 const SAScredential = process.env.SAScredential;
 const azureSASCredential = new AzureSASCredential(SAScredential);
 
@@ -42,9 +42,9 @@ const clientTableClient = new TableClient(
     tableName,
     azureSASCredential
 );
-const policyNumberTableClient = new TableClient(
+const errorLogTable = new TableClient(
     `https://${storageAccount}.table.core.windows.net/`,
-    policyNumberTableName,
+    errorLogTableName,
     azureSASCredential
 );
 
@@ -79,11 +79,16 @@ adapter.onTurnError = async (context, error) => {
         'https://www.botframework.com/schemas/error',
         'TurnError'
     );
+    
+    try{
+        let errorData = {participantId: context.activity.from.id, conversationId: context.activity.conversation.id, error: error, activity: context.activity.text, timestamp: new Date()}
+        addSequentialRow(errorLogTable, errorData);
+    } catch {
+        console.log("ERROR IN LOGGING ERROR!!!!!")
+    }
 
     // Send a message to the user
-    await context.sendActivity(`The error "${ error }"`);
-    await context.sendActivity('The bot encountered an error or bug.');
-    await context.sendActivity('To continue to run this bot, please fix the bot source code.');
+    await context.sendActivity("There has been an error processing your request, apologies for the inconvenience.\nWe will be in contact with your shortly to rectify it.");
 };
 
 const memoryStorage = new CosmosDbPartitionedStorage({
@@ -99,9 +104,9 @@ const userState = new UserState(memoryStorage);
 // Create the main dialog.
 const generalDialog = new GeneralDialog("generalDialog");
 const awaitingPaymentDialog = new AwaitingPaymentDialog("awaitingPaymentDialog");
-const inceptionDialog = new InceptionDialog("inceptionDialog", generalDialog, clientTableClient, policyNumberTableClient);
+const inceptionDialog = new InceptionDialog("inceptionDialog",userState, conversationState);
 const dialog = new MainDialog(inceptionDialog, generalDialog, awaitingPaymentDialog, clientTableClient);
-const myBot = new DialogAndWelcomeBot(conversationState, userState, dialog, clientTableClient);
+const myBot = new DialogAndWelcomeBot(conversationState, userState, dialog);
 
 // Listen for incoming requests.
 server.post('/api/messages', async (req, res) => {
@@ -114,3 +119,29 @@ server.get('/api/health', (req, res, next) => {
     res.send(200, 'Healthy');
     next();
 });
+
+async function addSequentialRow(tableClient, data) {
+    // Query the table to find the highest existing RowKey.
+    const tableEntities = tableClient.listEntities({
+      queryOptions: { filter: `PartitionKey eq ''` },
+      select: ["RowKey"]
+    });
+  
+    let maxRowKey = 0;
+  
+    for await (const entity of tableEntities) {
+      let rowKey = parseInt(entity.rowKey);
+      if (rowKey > maxRowKey) {
+        maxRowKey = rowKey;
+      }
+    }
+  
+    // Increment maxRowKey by 1 for the new row.
+    const newRowKey = maxRowKey + 1;
+  
+    // Create a new row with the given data, plus the new RowKey.
+    const newRow = { ...data, partitionKey:'', rowKey: newRowKey.toString()};
+    const createEntityResponse = await tableClient.createEntity(newRow);
+  
+    return createEntityResponse;
+}

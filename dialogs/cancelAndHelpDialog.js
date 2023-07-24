@@ -6,6 +6,11 @@ const { ComponentDialog, DialogTurnStatus } = require('botbuilder-dialogs');
  * BEFORE they reach the normal bot logic.
  */
 class CancelAndHelpDialog extends ComponentDialog {
+    constructor(id, userState, conversationState) {
+        super(id);
+        this.userState = userState;
+        this.conversationState = conversationState;
+    }
     async onContinueDialog(innerDc) {
         const result = await this.interrupt(innerDc);
         if (result) {
@@ -30,6 +35,14 @@ class CancelAndHelpDialog extends ComponentDialog {
                 const cancelMessageText = 'Cancelling...';
                 await innerDc.context.sendActivity(cancelMessageText, cancelMessageText, InputHints.IgnoringInput);
                 return await innerDc.cancelAllDialogs();
+            }
+            case 'reset_chat': {
+                const cancelMessageText = 'Resetting...';
+                await innerDc.context.sendActivity(cancelMessageText, cancelMessageText, InputHints.IgnoringInput);
+
+                // Restart the main dialog
+                await innerDc.cancelAllDialogs();
+                return await innerDc.beginDialog('mainDialog');
             }
             }
         }

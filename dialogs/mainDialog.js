@@ -28,6 +28,7 @@ class MainDialog extends ComponentDialog {
     async run(turnContext, accessor) {
         const dialogSet = new DialogSet(accessor);
         dialogSet.add(this);
+        console.log("RUNNING MAIN DIALOG FROM RUN")
         const dialogContext = await dialogSet.createContext(turnContext);
         const results = await dialogContext.continueDialog();
         if (results.status === DialogTurnStatus.empty) {
@@ -90,12 +91,8 @@ class MainDialog extends ComponentDialog {
         if (clientDetails.incepted === true) {
             return await stepContext.beginDialog('generalDialog', clientDetails)
         } else {
-            if (clientDetails.dataPopulated === true) {
-                return await stepContext.beginDialog('awaitingPaymentDialog', clientDetails)
-            }
-            else {
-                return await stepContext.beginDialog('inceptionDialog', clientDetails);
-            }
+            console.log(`CLIENT DETAILS INCEPTED ${JSON.stringify(clientDetails.incepted)}`)
+            return await stepContext.beginDialog('inceptionDialog', clientDetails);
         }
     };
 
