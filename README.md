@@ -1,8 +1,9 @@
 # vum-bot
 
-THIS BOT IS SET UP FOR KINGSLEY ROBINS SUBSCRIPTION.
+THIS BOT IS SET UP FOR VUM.
 
-Run VUM&#39;s Business Lite Inception, and general queries through bot responses and agent hub connection
+To Run the Business Lite Inception process, and general queries through bot responses and agent hub connection.
+This Bot is currently only through the Moya App, it doesn't have any other channels.
 
 This bot has been created using [Bot Framework](https://dev.botframework.com), it provides a minimal skeleton of a bot.
 
