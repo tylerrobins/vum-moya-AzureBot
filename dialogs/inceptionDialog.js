@@ -414,7 +414,11 @@ class InceptionDialog extends CancelAndHelpDialog {
             proRataText = `initial premium of R${clientDetails.premium_due} has been paid.`;
         }
         await stepContext.context.sendActivity(`Thank you for choosing us for your Business Insurance needs. Your application for cover has been processed and is successful, your application number is ${clientDetails.policyNumber}.\nPlease note that cover only becomes Active when the ${proRataText}`);
-        return await stepContext.beginDialog(AWAITING_PAYMENT_DIALOG, clientDetails);
+        if(clientDetails.paymentType == "Moya Pay") {
+            return await stepContext.beginDialog(AWAITING_PAYMENT_DIALOG, clientDetails);
+        } else {
+            return await stepContext.endDialog(clientDetails);
+        }
     };
 }
 

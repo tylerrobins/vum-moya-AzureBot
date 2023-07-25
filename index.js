@@ -12,10 +12,6 @@ const helperFunctions = require('./helperFunctions');
 // DEBUG MODE
 const { debug, webAppEndpoint } = helperFunctions.debugMode();
 
-console.log("Web App Endpoint: " + webAppEndpoint)
-console.log("DEBUG MODE: " + debug)
-console.log(`Hostname: ${os.hostname()}`)
-
 // Import required bot services.
 const restify = require('restify');
 const {
