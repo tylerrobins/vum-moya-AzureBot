@@ -2,6 +2,13 @@ const axios = require('axios');
 const { InputHints, MessageFactory} = require('botbuilder');
 const { CancelAndHelpDialog } = require('./cancelAndHelpDialog');
 const { TextPrompt, WaterfallDialog } = require('botbuilder-dialogs');
+const os = require('os');
+
+// Import debugMode function
+const helperFunctions = require('../helperFunctions.js');
+
+// DEBUG MODE VARIABLES
+const { debug, webAppEndpoint } = helperFunctions.debugMode();
 
 const INCEPTION_DIALOG = 'inceptionDialog';
 const MAIN_DIALOG = 'mainDialog';
@@ -83,6 +90,13 @@ class InceptionDialog extends CancelAndHelpDialog {
         //     default:
         //         return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
         // }
+
+        // Set payment type
+        if (clientDetails.moyaPay === 2) {
+            clientDetails.paymentType = 'MoyaPay';
+        } else {
+            clientDetails.paymentType = 'Pay@';
+        }
         if (!clientDetails.coverOption) {
             const messageText = 'Please select a Cover Option?\nA - Starter\nB - Standard\nC - Premium';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
@@ -151,6 +165,7 @@ class InceptionDialog extends CancelAndHelpDialog {
     async lastNameStep(stepContext) {
         const clientDetails = stepContext.options;
         const result = stepContext.result;
+        clientDetails.firstName = result;
 
         if (!clientDetails.lastName){
             const messageText = 'Please provide your last name?';
@@ -163,6 +178,7 @@ class InceptionDialog extends CancelAndHelpDialog {
     async citizenshipStep(stepContext) {
         const clientDetails = stepContext.options;
         const result = stepContext.result;
+        clientDetails.lastName = result;
 
         if (!clientDetails.citizenship) {
             const messageText = 'Please select your citizenship?\nA - South African\nB - Other';
@@ -205,6 +221,7 @@ class InceptionDialog extends CancelAndHelpDialog {
     async idNumberStep(stepContext) {
         const clientDetails = stepContext.options;
         const result = stepContext.result;
+        clientDetails.citizenship = result;
 
         if (!clientDetails.idNumber) {
             if(clientDetails.southAfricanCitizen) {
@@ -220,10 +237,10 @@ class InceptionDialog extends CancelAndHelpDialog {
         return await stepContext.next(clientDetails.idNumber);
     };
 
-
     async tradingNameStep(stepContext) {
         const clientDetails = stepContext.options;
         const result = stepContext.result;
+        clientDetails.idNumber = result;
 
         if (!clientDetails.hasTradingName) {
             const messageText = 'Do you have a business trading name?\nA - Yes\nB - No';
@@ -240,11 +257,11 @@ class InceptionDialog extends CancelAndHelpDialog {
         switch(result.toLowerCase()) {
             case 'a':
             case 'true':
-                clientDetails.hasTradingName = 'true';
+                clientDetails.hasTradingName = true;
                 break;
             case 'b':
             case 'false':
-                clientDetails.hasTradingName = 'false';
+                clientDetails.hasTradingName = false;
                 clientDetails.businessName = `${clientDetails.firstName} ${clientDetails.lastName}`;
                 break;
             default:
@@ -338,7 +355,7 @@ class InceptionDialog extends CancelAndHelpDialog {
                     }
                 }
         }
-        const messageText = `Please confirm the following information:\n\nCover Option: ${clientDetails.coverOption}\nBusiness Name: ${clientDetails.businessName}\nInception Date: ${clientDetails.inceptionDate}\n\nA - Correct Information\nB - Incorrect Information`;
+        const messageText = `Please confirm the following information:\n\nCover Option: ${clientDetails.coverOption}\nFirst Name: ${clientDetails.firstName}\nLast Name: ${clientDetails.lastName}\nCitizenship: ${clientDetails.citizenship}\nID/Passport Number: ${clientDetails.idNumber}\n${clientDetails.hasTradingName ?'Business Name: ' + clientDetails.businessName + '\n':''}Inception Date: ${clientDetails.inceptionDate}\n\nA - Correct Information\nB - Incorrect Information`;
         const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
         return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
     };
@@ -383,8 +400,9 @@ class InceptionDialog extends CancelAndHelpDialog {
             return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
         }
         clientDetails.dataPopulated = true;
+        clientDetails.hasTradingName = clientDetails.hasTradingName.toString()
         console.log(`\n\nCLIENT DATA: ${JSON.stringify(clientDetails)}\n\n`);
-        let populated_data_result = await VUMWebAppPostRequest(`https://vum-webapp-node.azurewebsites.net/populatePolicyData/`, clientDetails)
+        let populated_data_result = await VUMWebAppPostRequest(webAppEndpoint, clientDetails)
         console.log(`POPLUATED DATA RESULT: ${JSON.stringify(populated_data_result)}`)
         clientDetails.pro_rata = populated_data_result.data.pro_rata;
         clientDetails.premium_due = populated_data_result.data.premium_due;
