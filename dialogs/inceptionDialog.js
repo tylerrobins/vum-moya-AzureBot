@@ -18,8 +18,13 @@ class InceptionDialog extends CancelAndHelpDialog {
 
         this.addDialog(new TextPrompt(TEXT_PROMPT))
             .addDialog(new WaterfallDialog(INCEPTION_DIALOG, [
-                this.moyaPayCheckStep.bind(this),
+                // this.moyaPayCheckStep.bind(this),
                 this.coverOptionStep.bind(this),
+                this.firstNameStep.bind(this),
+                this.lastNameStep.bind(this),
+                this.citizenshipStep.bind(this),
+                this.foreignCitizenStep.bind(this),
+                this.idNumberStep.bind(this),
                 this.tradingNameStep.bind(this),
                 this.businessNameStep.bind(this),
                 this.businessPinLocationStep.bind(this),
@@ -31,51 +36,53 @@ class InceptionDialog extends CancelAndHelpDialog {
         this.initialDialogId = INCEPTION_DIALOG;
     };
 
-    async moyaPayCheckStep(stepContext) {
-        // console.log the chat particapant's id
-        const clientDetails = stepContext.options;
+    // DON'T NEED MOYA PAY CHECK STEP AS PAY@ IS NOW ADDED
+    // async moyaPayCheckStep(stepContext) {
+    //     // console.log the chat particapant's id
+    //     const clientDetails = stepContext.options;
 
-        console.log(`Result of !clientDetails.moyaPay : ${!clientDetails.moyaPay}`)
-        // if(!clientDetails.businessActivity) {
-        //     stepContext.context('Please start the process by going to the Business Insurance Tile in the Moya App');
-        //     return await stepContext.endDialog();
-        // }
-        await stepContext.context.sendActivity('Thank you for you interest in our product, we have the following Cover Options available to you:\n\nStarter - R75\n- Stock and Contents: R30 000\n- Personal Accident: R25 000\n- Political Riot: R500 000\n\nStandard - R125\n- Stock and Contents: R50 000\n- Personal Accident: R25 000\n- Cell phone cover: R2 500\n- Political Riot: R500 000\n\nPremium - R195\n- Stock and Contents: R100 000\n- Personal Accident: R50 000\n- Cell phone cover: R5 000\n- Political Riot: R500 000\n\n');
-        console.log("MoyaPay: undefined or empty if statement")
-        switch(clientDetails.moyaPay) {
-            case 1:
-                const messageText1 = 'At the moment this product is exclusive to MoyaPay users. Your MoyaPay account is currently being verified, once your account has been opened you will be able to continue the policy inception process.';
-                const msg1 = MessageFactory.text(messageText1, messageText1, InputHints.ExpectingInput);
-                return await stepContext.prompt(TEXT_PROMPT, { prompt: msg1 });
-                // stepContext.context.sendActivity('At the moment this product is exclusive to MoyaPay users. Your MoyaPay account is currently being verified, once your account has been opened you will be able to continue the policy inception process.');
-                // return await stepContext.endDialog();
-            case 2:
-                return await stepContext.next(clientDetails.moyaPay);
-            default:
-                const messageText0 = 'We are sorry, but at the moment this product is exclusive to MoyaPay users. You can easily open a MoyaPay account by tapping here: moya://moya.payd or tap on the (?) button in MoyaPay for help with opening your account.';
-                const msg0 = MessageFactory.text(messageText0, messageText0, InputHints.ExpectingInput);
-                return await stepContext.prompt(TEXT_PROMPT, { prompt: msg0 });
-        }
-    };
+    //     console.log(`Result of !clientDetails.moyaPay : ${!clientDetails.moyaPay}`)
+    //     // if(!clientDetails.businessActivity) {
+    //     //     stepContext.context('Please start the process by going to the Business Insurance Tile in the Moya App');
+    //     //     return await stepContext.endDialog();
+    //     // }
+    //     await stepContext.context.sendActivity('Thank you for you interest in our product, we have the following Cover Options available to you:\n\nStarter - R75\n- Stock and Contents: R30 000\n- Personal Accident: R25 000\n- Political Riot: R500 000\n\nStandard - R125\n- Stock and Contents: R50 000\n- Personal Accident: R25 000\n- Cell phone cover: R2 500\n- Political Riot: R500 000\n\nPremium - R195\n- Stock and Contents: R100 000\n- Personal Accident: R50 000\n- Cell phone cover: R5 000\n- Political Riot: R500 000\n\n');
+    //     console.log("MoyaPay: undefined or empty if statement")
+    //     switch(clientDetails.moyaPay) {
+    //         case 1:
+    //             const messageText1 = 'At the moment this product is exclusive to MoyaPay users. Your MoyaPay account is currently being verified, once your account has been opened you will be able to continue the policy inception process.';
+    //             const msg1 = MessageFactory.text(messageText1, messageText1, InputHints.ExpectingInput);
+    //             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg1 });
+    //             // stepContext.context.sendActivity('At the moment this product is exclusive to MoyaPay users. Your MoyaPay account is currently being verified, once your account has been opened you will be able to continue the policy inception process.');
+    //             // return await stepContext.endDialog();
+    //         case 2:
+    //             return await stepContext.next(clientDetails.moyaPay);
+    //         default:
+    //             const messageText0 = 'We are sorry, but at the moment this product is exclusive to MoyaPay users. You can easily open a MoyaPay account by tapping here: moya://moya.payd or tap on the (?) button in MoyaPay for help with opening your account.';
+    //             const msg0 = MessageFactory.text(messageText0, messageText0, InputHints.ExpectingInput);
+    //             return await stepContext.prompt(TEXT_PROMPT, { prompt: msg0 });
+    //     }
+    // };
 
     async coverOptionStep(stepContext) {
         const clientDetails = stepContext.options;
-        const result = stepContext.result;
+        // REMOVED AS THE MOYA PAY CHECK STEP IS NO LONGER IN USE
+        // const result = stepContext.result;
         // Check the results, of MoyaPay check step
-        switch (result) {
-            case 0:              
-                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
-            case 1:
-                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
-            case 2:
-                console.log("\nMOYA PAY STATUS 2\n")
-                break;
-            case 'start chat':
-                console.log(`\nSTART CHAT\n`)
-                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
-            default:
-                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
-        }
+        // switch (result) {
+        //     case 0:              
+        //         return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+        //     case 1:
+        //         return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+        //     case 2:
+        //         console.log("\nMOYA PAY STATUS 2\n")
+        //         break;
+        //     case 'start chat':
+        //         console.log(`\nSTART CHAT\n`)
+        //         return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+        //     default:
+        //         return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+        // }
         if (!clientDetails.coverOption) {
             const messageText = 'Please select a Cover Option?\nA - Starter\nB - Standard\nC - Premium';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
@@ -85,7 +92,7 @@ class InceptionDialog extends CancelAndHelpDialog {
         return await stepContext.next(clientDetails.coverOption);
     };
 
-    async tradingNameStep(stepContext) {
+    async firstNameStep(stepContext) {
         const clientDetails = stepContext.options;
         const result = stepContext.result;
         // Check the results, of Cover Option step
@@ -126,10 +133,79 @@ class InceptionDialog extends CancelAndHelpDialog {
                 clientDetails.premium_nett_excl_sasria = 165.22;
                 clientDetails.premium_vat_excl_sasria = 24.78;
                 break;
+            case 'start chat':
+                console.log(`\nSTART CHAT\n`)
+                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
             default:
                 await stepContext.context.sendActivity("Please select a valid option\n\n");
                 return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
         }
+        if (!clientDetails.firstName) {
+            const messageText = 'Please provide your first name?';
+            const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+            return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+        }
+        return await stepContext.next(clientDetails.firstName);
+    };
+
+    async lastNameStep(stepContext) {
+        const clientDetails = stepContext.options;
+        const result = stepContext.result;
+
+        if (!clientDetails.lastName){
+            const messageText = 'Please provide your last name?';
+            const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+            return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+        }
+        return await stepContext.next(clientDetails.lastName);
+    };
+
+    async citizenshipStep(stepContext) {
+        const clientDetails = stepContext.options;
+        const result = stepContext.result;
+
+        if (!clientDetails.citizenship) {
+            const messageText = 'Please select your citizenship?\nA - South African\nB - Other';
+            const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+            return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+        }
+        return await stepContext.next(clientDetails.citizenship);
+    };
+
+    async foreignCitizenStep(stepContext) {
+        const clientDetails = stepContext.options;
+        const result = stepContext.result;
+
+        switch(result.toLowerCase()) {
+            case 'a':
+            case 'true':
+            case 'south african':
+            case 'sa':
+            case 'za':
+                clientDetails.citizenship = 'South African';
+                clientDetails.southAfricanCitizen = 'true';
+                break;
+            case 'b':
+            case 'false':
+                clientDetails.citizenship = 'Other';
+                clientDetails.southAfricanCitizen = 'false';
+                break;
+            default:
+                await stepContext.context.sendActivity("Please select a valid option\n\n");
+                return await stepContext.beginDialog(INCEPTION_DIALOG, clientDetails);
+        }
+        if (!clientDetails.southAfricanCitizen){
+            const messageText = 'Please provide your country of citizenship?';
+            const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+            return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+        }
+        return await stepContext.next(clientDetails.citizenship);
+    };
+
+    async tradingNameStep(stepContext) {
+        const clientDetails = stepContext.options;
+        const result = stepContext.result;
+
         if (!clientDetails.hasTradingName) {
             const messageText = 'Do you have a business trading name?\nA - Yes\nB - No';
             const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
@@ -139,7 +215,6 @@ class InceptionDialog extends CancelAndHelpDialog {
     };
 
     async businessNameStep(stepContext) {
-        console.log("BUSINESS NAME STEP")
         const clientDetails = stepContext.options;
         const result = stepContext.result;
 
