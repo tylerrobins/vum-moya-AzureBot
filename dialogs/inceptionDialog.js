@@ -202,6 +202,25 @@ class InceptionDialog extends CancelAndHelpDialog {
         return await stepContext.next(clientDetails.citizenship);
     };
 
+    async idNumberStep(stepContext) {
+        const clientDetails = stepContext.options;
+        const result = stepContext.result;
+
+        if (!clientDetails.idNumber) {
+            if(clientDetails.southAfricanCitizen) {
+                const messageText = 'Please provide your ID number?';
+                const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+                return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+            } else {
+                const messageText = 'Please provide your passport number?';
+                const msg = MessageFactory.text(messageText, messageText, InputHints.ExpectingInput);
+                return await stepContext.prompt(TEXT_PROMPT, { prompt: msg });
+            }
+        }
+        return await stepContext.next(clientDetails.idNumber);
+    };
+
+
     async tradingNameStep(stepContext) {
         const clientDetails = stepContext.options;
         const result = stepContext.result;
