@@ -60,7 +60,6 @@ class MainDialog extends ComponentDialog {
                 moyaPay: "",
                 moyaPayStatus: "",
                 policyNumber:"",
-                id:"",
                 hasTradingName: "",
                 businessName:"", 
                 coverOption:"",
