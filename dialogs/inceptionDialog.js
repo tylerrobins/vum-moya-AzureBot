@@ -11,6 +11,7 @@ const helperFunctions = require('../helperFunctions.js');
 const { debug, webAppEndpoint } = helperFunctions.debugMode();
 
 const INCEPTION_DIALOG = 'inceptionDialog';
+const GENERAL_DIALOG = 'generalDialog';
 const MAIN_DIALOG = 'mainDialog';
 // const GENERAL_DIALOG = 'generalDialog';
 const AWAITING_PAYMENT_DIALOG = 'awaitingPaymentDialog';
@@ -417,7 +418,7 @@ class InceptionDialog extends CancelAndHelpDialog {
         if(clientDetails.paymentType == "Moya Pay") {
             return await stepContext.beginDialog(AWAITING_PAYMENT_DIALOG, clientDetails);
         } else {
-            return await stepContext.endDialog(clientDetails);
+            return await stepContext.beginDialog(GENERAL_DIALOG, clientDetails);
         }
     };
 }
